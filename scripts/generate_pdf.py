@@ -5,15 +5,17 @@ Reads OCR JSON from temp/ocr_results/ocr_<id>.json
 Reads translations from temp/translations/trans_<id>.json
 Outputs to 中文版/<filename>.pdf
 """
-import fitz, os, json, sys
+import fitz, os, json, sys, re, html
+from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                 PageBreak, HRFlowable, Image, KeepInFrame)
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.colors import HexColor
-from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                 PageBreak, HRFlowable, Image)
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from xml.sax.saxutils import escape as xml_escape
+from formula_renderer import normalize_translation_text as render_formula_translation
 
 # ── Config ──
 BASE = r'D:\StudyWorks\3.2\机器视觉\课程ppt'
@@ -42,6 +44,12 @@ CHAPTERS = {
 # Register Chinese fonts
 pdfmetrics.registerFont(TTFont('SimHei', r'C:\Windows\Fonts\simhei.ttf'))
 pdfmetrics.registerFont(TTFont('YaHei', r'C:\Windows\Fonts\msyh.ttc', subfontIndex=0))
+pdfmetrics.registerFont(TTFont('Cambria', r'C:\Windows\Fonts\cambria.ttc', subfontIndex=0))
+
+def normalize_translation_text(text):
+    """Prepare translation markup and render formulas as LaTeX-style images."""
+    return render_formula_translation(text, TEMP_DIR)
+
 
 def generate_pdf(ch_id):
     """Generate Chinese PDF for a chapter given its translations."""
@@ -92,7 +100,7 @@ def generate_pdf(ch_id):
     cover_sub = ParagraphStyle('CS', fontName='SimHei', fontSize=14, leading=22,
         alignment=TA_CENTER, textColor=HexColor('#555555'))
     body = ParagraphStyle('body', fontName='YaHei', fontSize=13, leading=20,
-        textColor=HexColor('#333333'))
+        textColor=HexColor('#333333'), spaceAfter=2)
     footer = ParagraphStyle('ft', fontName='SimHei', fontSize=8, leading=12,
         textColor=HexColor('#bbbbbb'), alignment=TA_CENTER)
 
@@ -136,7 +144,8 @@ def generate_pdf(ch_id):
 
         # Translation
         if key in translations:
-            story.append(Paragraph(translations[key], body))
+            translation = normalize_translation_text(translations[key])
+            story.append(KeepInFrame(img_w, 260, [Paragraph(translation, body)], mode='shrink'))
 
         story.append(Spacer(1, 6))
         story.append(HRFlowable(width="60%", thickness=0.3, color=HexColor('#dddddd'),

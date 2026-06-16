@@ -3,7 +3,7 @@ Improved Chinese PDF for 04_edge_detection
 Layout: Original slide image (top) + Chinese translation (bottom)
 Preserves all diagrams, formulas, and visual content.
 """
-import fitz, os, io, json
+import fitz, os, io, json, hashlib
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm, cm
 from reportlab.lib.styles import ParagraphStyle
@@ -13,7 +13,9 @@ from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
                                  PageBreak, HRFlowable, Image, KeepTogether)
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from PIL import Image as PILImage
+from reportlab.platypus import Table, TableStyle
+from PIL import Image as PILImage, ImageDraw, ImageFont
+from formula_renderer import normalize_translation_text, render_matrix_asset
 
 # ── Setup ──
 BASE = r'D:\StudyWorks\3.2\机器视觉\课程ppt'
@@ -22,7 +24,9 @@ OUT_DIR = os.path.join(BASE, '中文版')      # Translated Chinese PDFs output
 TEMP_DIR = os.path.join(BASE, 'temp')       # Working temp files
 ORIG_PDF = os.path.join(SRC_DIR, '04_edge detection.pdf')
 IMG_DIR = os.path.join(TEMP_DIR, 'slides')
+MATRIX_DIR = os.path.join(TEMP_DIR, 'matrix_blocks')
 os.makedirs(IMG_DIR, exist_ok=True)
+os.makedirs(MATRIX_DIR, exist_ok=True)
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # Register Chinese fonts
@@ -30,6 +34,111 @@ pdfmetrics.registerFont(TTFont('SimHei', r'C:\Windows\Fonts\simhei.ttf'))
 pdfmetrics.registerFont(TTFont('SimSun', r'C:\Windows\Fonts\simsun.ttc', subfontIndex=0))
 pdfmetrics.registerFont(TTFont('SimKai', r'C:\Windows\Fonts\simkai.ttf'))
 pdfmetrics.registerFont(TTFont('YaHei', r'C:\Windows\Fonts\msyh.ttc', subfontIndex=0))
+pdfmetrics.registerFont(TTFont('Cambria', r'C:\Windows\Fonts\cambria.ttc', subfontIndex=0))
+
+
+MATRIX_FONT = r'C:\Windows\Fonts\cambria.ttc'
+MATRIX_SCALE = 2
+
+
+def _load_matrix_font(size):
+    return ImageFont.truetype(MATRIX_FONT, size=size, index=0)
+
+
+def _measure_text(draw, text, font):
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+
+def _draw_bracket(draw, x, top, bottom, side, color, thickness, hook):
+    if side == 'left':
+        draw.line((x, top, x, bottom), fill=color, width=thickness)
+        draw.line((x, top, x + hook, top), fill=color, width=thickness)
+        draw.line((x, bottom, x + hook, bottom), fill=color, width=thickness)
+    else:
+        draw.line((x, top, x, bottom), fill=color, width=thickness)
+        draw.line((x - hook, top, x, top), fill=color, width=thickness)
+        draw.line((x - hook, bottom, x, bottom), fill=color, width=thickness)
+
+
+def _matrix_image_path(label, rows):
+    signature = label + '|' + '|'.join(' '.join(map(str, row)) for row in rows)
+    digest = hashlib.md5(signature.encode('utf-8')).hexdigest()[:12]
+    return os.path.join(MATRIX_DIR, f'matrix_{digest}.png')
+
+
+def matrix_block(label, rows):
+    """Render a matrix block using the shared formula renderer."""
+    matrix_rows = [row.split() if isinstance(row, str) else list(row) for row in rows]
+    asset = render_matrix_asset(label, matrix_rows, TEMP_DIR)
+    return Image(asset['path'], width=asset['width_pt'], height=asset['height_pt'])
+
+
+def add_page_08_content(story):
+    """Custom layout for the derivative-kernel page so matrices stay on one page."""
+    title_style = ParagraphStyle('P08T', fontName='SimHei', fontSize=16, leading=22,
+                                 textColor=HexColor('#16213e'))
+    body_style = ParagraphStyle('P08B', fontName='YaHei', fontSize=12, leading=16,
+                                textColor=HexColor('#333333'))
+    note_style = ParagraphStyle('P08N', fontName='YaHei', fontSize=11, leading=14,
+                                textColor=HexColor('#888888'))
+
+    story.append(Paragraph("<b>常用导数近似算子</b>", title_style))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph("Prewitt 算子（3×3）：", body_style))
+    story.append(Spacer(1, 4))
+    story.append(Table(
+        [[
+            matrix_block('Mx', ['-1  0  1', '-1  0  1', '-1  0  1']),
+            matrix_block('My', ['1  1  1', '0  0  0', '-1 -1 -1']),
+        ]],
+        colWidths=[245, 245],
+        style=TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ])
+    ))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Sobel 算子（3×3，中心加权）：", body_style))
+    story.append(Spacer(1, 4))
+    story.append(Table(
+        [[
+            matrix_block('Mx', ['-1  0  1', '-2  0  2', '-1  0  1']),
+            matrix_block('My', ['1  2  1', '0  0  0', '-1 -2 -1']),
+        ]],
+        colWidths=[245, 245],
+        style=TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ])
+    ))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Roberts 算子（2×2，对角线）：", body_style))
+    story.append(Spacer(1, 4))
+    story.append(Table(
+        [[
+            matrix_block('Mx', ['0  1', '-1 0']),
+            matrix_block('My', ['1  0', '0 -1']),
+        ]],
+        colWidths=[245, 245],
+        style=TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ])
+    ))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Sobel 最常用——在中心位置赋予更高权重，对噪声更鲁棒。", body_style))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("（图片来源：K. Grauman）", note_style))
 
 # ── Step 1: Extract all slides as images ──
 print("Extracting slides from original PDF...")
@@ -141,15 +250,15 @@ translations = {
 <br/>
 <font face='YaHei' size='13'>
 <b>Prewitt 算子（3×3）：</b><br/>
-&nbsp;&nbsp;Mx = [[-1,0,1],[-1,0,1],[-1,0,1]]<br/>
-&nbsp;&nbsp;My = [[1,1,1],[0,0,0],[-1,-1,-1]]<br/>
+&nbsp;&nbsp;Mx = <font face='Courier'>[ -1  0  1<br/>&nbsp;&nbsp;&nbsp;&nbsp; -1  0  1<br/>&nbsp;&nbsp;&nbsp;&nbsp; -1  0  1 ]</font><br/>
+&nbsp;&nbsp;My = <font face='Courier'>[ 1  1  1<br/>&nbsp;&nbsp;&nbsp;&nbsp; 0  0  0<br/>&nbsp;&nbsp;&nbsp;&nbsp; -1 -1 -1 ]</font><br/>
 <br/>
 <b>Sobel 算子（3×3，中心加权）：</b><br/>
-&nbsp;&nbsp;Mx = [[-1,0,1],[-2,0,2],[-1,0,1]]<br/>
-&nbsp;&nbsp;My = [[1,2,1],[0,0,0],[-1,-2,-1]]<br/>
+&nbsp;&nbsp;Mx = <font face='Courier'>[ -1  0  1<br/>&nbsp;&nbsp;&nbsp;&nbsp; -2  0  2<br/>&nbsp;&nbsp;&nbsp;&nbsp; -1  0  1 ]</font><br/>
+&nbsp;&nbsp;My = <font face='Courier'>[ 1  2  1<br/>&nbsp;&nbsp;&nbsp;&nbsp; 0  0  0<br/>&nbsp;&nbsp;&nbsp;&nbsp; -1 -2 -1 ]</font><br/>
 <br/>
 <b>Roberts 算子（2×2，对角线）：</b><br/>
-&nbsp;&nbsp;Mx = [[0,1],[-1,0]]&nbsp;&nbsp;&nbsp;My = [[1,0],[0,-1]]<br/>
+&nbsp;&nbsp;Mx = <font face='Courier'>[ 0  1<br/>&nbsp;&nbsp;&nbsp;&nbsp; -1 0 ]</font>&nbsp;&nbsp;&nbsp;My = <font face='Courier'>[ 1  0<br/>&nbsp;&nbsp;&nbsp;&nbsp; 0 -1 ]</font><br/>
 <br/>
 <b>Sobel 最常用</b>——在中心位置赋予更高权重，对噪声更鲁棒。<br/>
 <br/>
@@ -160,15 +269,15 @@ translations = {
 <font face='YaHei' size='13'>
 图像<b>梯度</b>定义为偏导数向量：<br/>
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<b>∇f = [ ∂f/∂x , ∂f/∂y ]</b><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<b><font face='Cambria'>∇f = [ ∂f/∂x , ∂f/∂y ]</font></b><br/>
 <br/>
 <b>梯度方向：</b>指向亮度<b>增加最快</b>的方向。<br/>
 <b>梯度与边缘的关系：</b>梯度方向 ⊥ 边缘方向。<br/>
 <br/>
-<b>梯度方向角：</b>&nbsp; θ = tan⁻¹( (∂f/∂y) / (∂f/∂x) )<br/>
+<b>梯度方向角：</b>&nbsp; <font face='Cambria'>θ = tan⁻¹( (∂f/∂y) / (∂f/∂x) )</font><br/>
 <br/>
 <b>梯度幅值（边缘强度）：</b><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<b>||∇f|| = √[ (∂f/∂x)² + (∂f/∂y)² ]</b><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<b><font face='Cambria'>||∇f|| = √[ (∂f/∂x)² + (∂f/∂y)² ]</font></b><br/>
 <br/>
 幅值越大 → 该位置越可能是边缘。<br/>
 <br/>
@@ -307,7 +416,7 @@ J. Canny (1986) 提出的经典算法，至今仍是<b>最广泛使用的边缘�
 <font face='YaHei' size='13'>
 用高斯导数滤波器对图像滤波，计算每个像素的梯度幅值：<br/>
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<b>||∇f|| = √[ (∂f/∂x)² + (∂f/∂y)² ]</b><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<b><font face='Cambria'>||∇f|| = √[ (∂f/∂x)² + (∂f/∂y)² ]</font></b><br/>
 <br/>
 <b>结果特征：</b><br/>
 • 边缘区域 → 梯度幅值大（亮）<br/>
@@ -409,7 +518,7 @@ J. Canny (1986) 提出的经典算法，至今仍是<b>最广泛使用的边缘�
 对图像使用高斯导数滤波器 → 同时完成平滑和微分<br/>
 <br/>
 <b>步骤 2：计算梯度幅值和方向</b><br/>
-||∇f|| = √[(∂f/∂x)² + (∂f/∂y)²]&nbsp;&nbsp;|&nbsp;&nbsp;θ = tan⁻¹(∂y/∂x)<br/>
+<font face='Cambria'>||∇f|| = √[(∂f/∂x)² + (∂f/∂y)²]&nbsp;&nbsp;|&nbsp;&nbsp;θ = tan⁻¹(∂y/∂x)</font><br/>
 <br/>
 <b>步骤 3：非极大值抑制</b><br/>
 沿梯度方向只保留局部最大值 → 宽脊变为单像素<br/>
@@ -537,11 +646,15 @@ for i in range(1, 29):
 
     # Chinese translation
     if key in translations:
-        trans_style = ParagraphStyle(
-            f'trans_{i}', fontName='YaHei', fontSize=13, leading=20,
-            textColor=HexColor('#333333'),
-        )
-        story.append(Paragraph(translations[key], trans_style))
+        if key == 'page_08':
+            add_page_08_content(story)
+        else:
+            trans_style = ParagraphStyle(
+                f'trans_{i}', fontName='YaHei', fontSize=13, leading=20,
+                textColor=HexColor('#333333'),
+            )
+            translation = normalize_translation_text(translations[key], TEMP_DIR)
+            story.append(Paragraph(translation, trans_style))
 
     # Bottom divider
     story.append(Spacer(1, 6))
