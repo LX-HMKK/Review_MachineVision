@@ -72,3 +72,24 @@ All source PDFs are **image-only** — `pdfplumber.extract_text()` returns `None
 | 11_detection.pdf | 57 |
 
 No original PPTX files are available — only these image-embedded PDFs.
+
+## Git conventions
+
+**Commit message format** — Angular convention in Chinese:
+
+```
+<type>(<scope>): <中文描述>
+
+<详细说明（可选）>
+```
+
+Types: `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `chore` | `ci` | `build`
+
+Examples:
+- `chore(项目): 初始化机器视觉PDF翻译项目`
+- `feat(翻译): 添加03_filter章节中文翻译`
+- `fix(脚本): 修复OCR路径配置错误`
+
+**Rules:**
+- 禁止使用 `Co-Authored-By` 署名
+- PowerShell 中禁止使用 `@'...'@` here-string 传递 commit message（会引入 `@` 字面字符），改用 `git commit -F <.tmpfile>` 文件方式提交
