@@ -1,0 +1,15 @@
+# Large binary PDF files — keep local only
+原版/
+中文版/
+
+# Temporary working files
+temp/
+
+# Claude session memory
+.remember/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
