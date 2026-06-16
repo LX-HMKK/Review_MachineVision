@@ -20,6 +20,11 @@ TAG_SPLIT_RE = re.compile(r"(<[^>]+>)")
 CJK_RE = re.compile(r"([\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]+)")
 SCRIPT_RE = re.compile(r"[\u2070-\u209F\u1D2C-\u1D7Fⱼᵢᵗₜ₁₂₃₄₅₆₇₈₉₀₌₊₋₍₎]")
 
+UNICODE_MATH_REPLACEMENTS = {
+    "±": r"\pm",
+    "∓": r"\mp",
+}
+
 
 def _init_mathtext():
     import matplotlib
@@ -115,6 +120,8 @@ def _script_base(ch):
 def normalize_formula_expr(expr):
     expr = expr.replace("\xa0", " ")
     expr = expr.replace("ȳ", r"\bar{y}")
+    for src, dst in UNICODE_MATH_REPLACEMENTS.items():
+        expr = expr.replace(src, dst)
     expr = re.sub(r"([A-Za-zα-ωΑ-Ω])\u0304", r"\\bar{\1}", expr)
     out = []
     i = 0

@@ -16,6 +16,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from xml.sax.saxutils import escape as xml_escape
 from formula_renderer import normalize_translation_text as render_formula_translation
+from formula_supplements import append_formula_supplement
 
 # ── Config ──
 BASE = r'D:\StudyWorks\3.2\机器视觉\课程ppt'
@@ -144,7 +145,8 @@ def generate_pdf(ch_id):
 
         # Translation
         if key in translations:
-            translation = normalize_translation_text(translations[key])
+            raw_translation = append_formula_supplement(ch_id, key, translations[key])
+            translation = normalize_translation_text(raw_translation)
             story.append(KeepInFrame(img_w, 260, [Paragraph(translation, body)], mode='shrink'))
 
         story.append(Spacer(1, 6))

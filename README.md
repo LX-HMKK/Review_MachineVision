@@ -7,6 +7,8 @@
 - **批量 OCR** — Tesseract 自动提取英文 PDF 中每页幻灯片的文字
 - **中英翻译** — 将 OCR 文本翻译为中文，保存为结构化 JSON
 - **PDF 生成** — reportlab 生成 A4 竖版 PDF：幻灯片原图在上，中文翻译在下
+- **公式补充** — 对公式页自动追加课程化学习说明，补足参数含义、符号约定和直觉理解
+- **数学符号规范化** — 生成时统一处理常见 Unicode 数学符号，避免公式渲染乱码
 - **11 个章节覆盖** — 滤波、边缘检测、拟合、Hough 变换、角点、Blob、纹理、分割、识别、检测
 
 ## 📋 环境要求
@@ -40,6 +42,8 @@ python scripts/generate_pdf.py {章节号}
 
 输出文件：`中文版/{章节号}_{中文标题}_中文版.pdf`
 
+如果某页需要补充公式解释或参数说明，统一修改 `scripts/formula_supplements.py` 即可，生成器会自动拼接到对应页的翻译下方。
+
 ### 方式二：手动翻译模板
 
 ```bash
@@ -59,7 +63,10 @@ python scripts/generate_cn_pdf_v2.py
 │   ├── batch_ocr.py            # 批量 OCR
 │   ├── generate_pdf.py         # 通用 PDF 生成器
 │   ├── generate_cn_pdf_v2.py   # 手动翻译模板
-│   └── formula_renderer.py     # 公式渲染工具
+│   ├── formula_renderer.py     # 公式渲染工具
+│   ├── formula_supplements.py  # 课程公式补充文案
+│   └── ...
+├── tests/                   # 回归测试
 ├── temp/                  # 临时文件（OCR 结果、翻译 JSON、幻灯片截图）
 ├── CLAUDE.md              # Claude Code 项目指引
 └── README.md
@@ -88,6 +95,7 @@ python scripts/generate_cn_pdf_v2.py
 - **标题**：黑体 16–18pt
 - **页面**：A4 竖版，30pt 页边距，幻灯片宽 510pt
 - **HTML 标签**：须使用 `<br/>`（XML 自闭合），不能用 `<br>` 或 `<br />`
+- **学习补充**：YaHei 11pt、灰色，用于解释公式、参数和课程默认约定
 
 ## 📄 许可证
 

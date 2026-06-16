@@ -16,6 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Table, TableStyle
 from PIL import Image as PILImage, ImageDraw, ImageFont
 from formula_renderer import normalize_translation_text, render_matrix_asset
+from formula_supplements import append_formula_supplement, get_formula_supplement
 
 # ── Setup ──
 BASE = r'D:\StudyWorks\3.2\机器视觉\课程ppt'
@@ -137,6 +138,10 @@ def add_page_08_content(story):
     ))
     story.append(Spacer(1, 8))
     story.append(Paragraph("Sobel 最常用——在中心位置赋予更高权重，对噪声更鲁棒。", body_style))
+    supplement = get_formula_supplement('04', 'page_08')
+    if supplement:
+        story.append(Spacer(1, 6))
+        story.append(Paragraph(normalize_translation_text(supplement, TEMP_DIR), body_style))
     story.append(Spacer(1, 10))
     story.append(Paragraph("（图片来源：K. Grauman）", note_style))
 
@@ -653,7 +658,8 @@ for i in range(1, 29):
                 f'trans_{i}', fontName='YaHei', fontSize=13, leading=20,
                 textColor=HexColor('#333333'),
             )
-            translation = normalize_translation_text(translations[key], TEMP_DIR)
+            raw_translation = append_formula_supplement('04', key, translations[key])
+            translation = normalize_translation_text(raw_translation, TEMP_DIR)
             story.append(Paragraph(translation, trans_style))
 
     # Bottom divider

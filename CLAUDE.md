@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-这是一个**机器视觉课程PDF翻译项目**。源文件是英文讲义幻灯片，导出为纯图片PDF（无可选文本）。流水线通过OCR提取文字，翻译为中文，生成"原始幻灯片图片+中文翻译"对照排版的PDF。
+这是一个**机器视觉课程PDF翻译项目**。源文件是英文讲义幻灯片，导出为纯图片PDF（无可选文本）。流水线通过OCR提取文字，翻译为中文，生成"原始幻灯片图片+中文翻译"对照排版的PDF。对公式页会自动追加课程化的“学习补充”，用于补足参数含义、符号约定和公式直觉；补充内容集中维护在 `scripts/formula_supplements.py`。
 
 ## 翻译流水线
 
@@ -16,7 +16,9 @@
 通用流水线步骤：
 1. **批量OCR** — 运行 `python scripts/batch_ocr.py`，Tesseract 提取英文文本，结果存入 `temp/ocr_results/`
 2. **翻译** — 将每页OCR文本翻译为中文，保存为 `temp/translations/trans_{章节号}.json`，格式：`{"page_01": "<html字符串>", ...}`
+   - 公式相关页的额外讲解不需要手写进每个 JSON，生成器会自动从 `scripts/formula_supplements.py` 读取并拼接到对应页翻译下方。
 3. **生成PDF** — 运行 `python scripts/generate_pdf.py {章节号}`，输出到 `中文版/`
+   - 生成时会调用 `scripts/formula_renderer.py` 对常见数学符号做规范化渲染，例如把 `±` 统一成 `\pm`，避免出现乱码。
 
 输出文件命名规则：`{章节号}_{中文标题}_中文版.pdf`
 
@@ -36,6 +38,7 @@
 - **正文**：YaHei（微软雅黑）13pt，行距约20pt
 - **章节标题**：SimHei（黑体）16–18pt，颜色 `#16213e`
 - **来源标注**：YaHei 11pt，颜色 `#888888`
+- **学习补充**：YaHei 11pt，颜色 `#666666`，用于解释公式、参数和课程里的默认约定
 - **页面布局**：A4竖版，30pt页边距，幻灯片图片宽510pt（16:9比例），翻译文字置于深色分隔线下方
 - **封面**：居中标题层级，包含章节号
 - **页眉**：`第 N 页 / 共 M 页 | {英文章节标题}`，浅灰色
@@ -51,7 +54,10 @@
 ├── scripts/              # 流水线脚本
 │   ├── batch_ocr.py           # 批量OCR
 │   ├── generate_pdf.py        # 通用PDF生成器
-│   └── generate_cn_pdf_v2.py  # 手动翻译模板（已弃用）
+│   ├── generate_cn_pdf_v2.py  # 手动翻译模板（已弃用）
+│   ├── formula_renderer.py    # 公式与数学符号渲染
+│   └── formula_supplements.py # 公式学习补充文案
+├── tests/                # 回归测试
 ├── temp/                 # 临时文件（OCR结果、翻译JSON、幻灯片截图）
 ├── CLAUDE.md
 └── .remember/
