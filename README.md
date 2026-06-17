@@ -15,10 +15,10 @@
 
 ## 📋 环境要求
 
-| 依赖 | 版本/路径 |
-|------|----------|
-| Python | 3.13（`C:\Python314\python.exe`） |
-| Tesseract OCR | v5.4.0（`D:\Program Files\Tesseract-OCR\tesseract.exe`） |
+| 依赖 | 版本 |
+|------|------|
+| Python | 3.13+ |
+| Tesseract OCR | v5.4.0+ |
 | 中文字体 | SimHei、YaHei、SimSun、SimKai（Windows 系统字体） |
 
 Python 包（`pip install` 安装到用户 site-packages）：
