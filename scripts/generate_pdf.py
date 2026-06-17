@@ -16,7 +16,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from xml.sax.saxutils import escape as xml_escape
 from formula_renderer import normalize_translation_text as render_formula_translation
-from formula_supplements import append_formula_supplement
+from formula_supplements import append_formula_supplement, highlight_translation_text
 
 # ── Config ──
 BASE = r'D:\StudyWorks\3.2\机器视觉\课程ppt'
@@ -30,6 +30,7 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 # Chapter metadata
 CHAPTERS = {
+    '02': {'src': '02_成像与标定.pdf', 'out': '02_成像与标定.pdf', 'title': '成像与标定', 'en_title': 'Imaging and Calibration', 'translation_optional': True},
     '03': {'src': '03_filter.pdf', 'out': '03_滤波_中文版.pdf', 'title': '图像滤波', 'en_title': 'Image Filtering'},
     '04': {'src': '04_edge detection.pdf', 'out': '04_边缘检测_中文版.pdf', 'title': '边缘检测', 'en_title': 'Edge Detection'},
     '05_1': {'src': '05_1_fitting.pdf', 'out': '05_1_拟合_中文版.pdf', 'title': '拟合', 'en_title': 'Fitting'},
@@ -62,13 +63,16 @@ def generate_pdf(ch_id):
     meta = CHAPTERS[ch_id]
     trans_file = os.path.join(TRANS_DIR, f'trans_{ch_id}.json')
 
-    if not os.path.exists(trans_file):
+    if os.path.exists(trans_file):
+        with open(trans_file, 'r', encoding='utf-8') as f:
+            translations = json.load(f)
+    elif meta.get('translation_optional'):
+        translations = {}
+        print(f'Translations not found for optional chapter {ch_id}; generating supplement-only annotations.')
+    else:
         print(f'Translations not found: {trans_file}')
         print('Run translation step first!')
         return
-
-    with open(trans_file, 'r', encoding='utf-8') as f:
-        translations = json.load(f)
 
     orig_pdf = os.path.join(SRC_DIR, meta['src'])
     if not os.path.exists(orig_pdf):
@@ -144,8 +148,9 @@ def generate_pdf(ch_id):
             spaceBefore=2, spaceAfter=4))
 
         # Translation
-        if key in translations:
-            raw_translation = append_formula_supplement(ch_id, key, translations[key])
+        base_translation = highlight_translation_text(translations.get(key, ''))
+        raw_translation = append_formula_supplement(ch_id, key, base_translation)
+        if raw_translation:
             translation = normalize_translation_text(raw_translation)
             story.append(KeepInFrame(img_w, 260, [Paragraph(translation, body)], mode='shrink'))
 

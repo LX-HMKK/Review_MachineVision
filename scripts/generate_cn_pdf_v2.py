@@ -16,7 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Table, TableStyle
 from PIL import Image as PILImage, ImageDraw, ImageFont
 from formula_renderer import normalize_translation_text, render_matrix_asset
-from formula_supplements import append_formula_supplement, get_formula_supplement
+from formula_supplements import append_formula_supplement, get_formula_supplement, highlight_translation_text
 
 # ── Setup ──
 BASE = r'D:\StudyWorks\3.2\机器视觉\课程ppt'
@@ -79,9 +79,9 @@ def add_page_08_content(story):
     """Custom layout for the derivative-kernel page so matrices stay on one page."""
     title_style = ParagraphStyle('P08T', fontName='SimHei', fontSize=16, leading=22,
                                  textColor=HexColor('#16213e'))
-    body_style = ParagraphStyle('P08B', fontName='YaHei', fontSize=12, leading=16,
+    body_style = ParagraphStyle('P08B', fontName='YaHei', fontSize=13, leading=18,
                                 textColor=HexColor('#333333'))
-    note_style = ParagraphStyle('P08N', fontName='YaHei', fontSize=11, leading=14,
+    note_style = ParagraphStyle('P08N', fontName='YaHei', fontSize=12, leading=16,
                                 textColor=HexColor('#888888'))
 
     story.append(Paragraph("<b>常用导数近似算子</b>", title_style))
@@ -658,7 +658,8 @@ for i in range(1, 29):
                 f'trans_{i}', fontName='YaHei', fontSize=13, leading=20,
                 textColor=HexColor('#333333'),
             )
-            raw_translation = append_formula_supplement('04', key, translations[key])
+            base_translation = highlight_translation_text(translations[key])
+            raw_translation = append_formula_supplement('04', key, base_translation)
             translation = normalize_translation_text(raw_translation, TEMP_DIR)
             story.append(Paragraph(translation, trans_style))
 

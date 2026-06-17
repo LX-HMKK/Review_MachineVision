@@ -1,18 +1,234 @@
 from __future__ import annotations
+import re
+
+
+ACCENT_RED = "#d32f2f"
+ACCENT_BLUE = "#1565c0"
+ACCENT_ORANGE = "#ef6c00"
+ACCENT_GREEN = "#2e7d32"
 
 
 def note(*lines: str) -> str:
     body = "<br/>".join(lines)
     return (
-        "<font face='YaHei' size='11' color='#666666'>"
+        "<font face='YaHei' size='12' color='#666666'>"
         "<b>学习补充：</b><br/>"
         f"{body}"
         "</font>"
     )
 
 
+def accent(text: str, color: str = ACCENT_RED) -> str:
+    return f"<font color='{color}'><b>{text}</b></font>"
+
+
 def repeat(supplement: str, *page_keys: str) -> dict[str, str]:
     return {page_key: supplement for page_key in page_keys}
+
+
+INLINE_BOLD_RE = re.compile(r"<b>([^<]+)</b>")
+LEADING_LABEL_RE = re.compile(r"(^|<br/>)(\s*[@>•\-—]?\s*)([^<：:=]{2,18}?)(\s*[：:=])")
+
+LABEL_COLORS = {
+    "目标：": ACCENT_RED,
+    "核心：": ACCENT_BLUE,
+    "核心思想：": ACCENT_BLUE,
+    "关键：": ACCENT_RED,
+    "关键点：": ACCENT_RED,
+    "结论：": ACCENT_ORANGE,
+    "注意：": ACCENT_ORANGE,
+    "直觉理解：": ACCENT_GREEN,
+    "直觉：": ACCENT_GREEN,
+    "优势：": ACCENT_BLUE,
+    "回忆：": ACCENT_GREEN,
+    "步骤：": ACCENT_BLUE,
+    "问题：": ACCENT_RED,
+    "答案：": ACCENT_BLUE,
+}
+
+KEYWORD_COLORS = {
+    "本章重点": ACCENT_RED,
+    "第一步": ACCENT_BLUE,
+    "边缘检测": ACCENT_RED,
+    "梯度": ACCENT_BLUE,
+    "霍夫变换": ACCENT_ORANGE,
+    "高斯": ACCENT_BLUE,
+    "中值滤波": ACCENT_GREEN,
+    "K-means": ACCENT_RED,
+    "mean shift": ACCENT_ORANGE,
+    "normalized cut": ACCENT_BLUE,
+    "Bag-of-features": ACCENT_GREEN,
+    "HOG": ACCENT_RED,
+    "boosting": ACCENT_ORANGE,
+}
+
+
+def _pick_leading_color(label: str) -> str | None:
+    compact = label.strip()
+    if not compact:
+        return None
+
+    if any(token in compact for token in ("重点", "关键", "问题", "挑战", "误差", "检测", "边缘", "目标")):
+        return ACCENT_RED
+    if any(token in compact for token in ("模型", "步骤", "方法", "特征", "任务", "表示", "处理", "视觉", "窗口")):
+        return ACCENT_BLUE
+    if any(token in compact for token in ("注意", "结论", "变换", "少见", "代价", "约束")):
+        return ACCENT_ORANGE
+    if any(token in compact for token in ("直觉", "回忆", "补充", "理解", "优势")):
+        return ACCENT_GREEN
+    return None
+
+
+def highlight_translation_text(text: str) -> str:
+    """Add color emphasis to important translation labels and bolded key phrases."""
+    if not text:
+        return text
+
+    highlighted = text
+
+    for label, color in LABEL_COLORS.items():
+        highlighted = highlighted.replace(f"<b>{label}</b>", accent(label, color))
+
+    def _color_bold(match: re.Match[str]) -> str:
+        inner = match.group(1)
+        if inner in LABEL_COLORS:
+            return accent(inner, LABEL_COLORS[inner])
+        return accent(inner, ACCENT_BLUE)
+
+    highlighted = INLINE_BOLD_RE.sub(_color_bold, highlighted)
+
+    def _color_leading_label(match: re.Match[str]) -> str:
+        prefix, marker, label, delimiter = match.groups()
+        color = _pick_leading_color(label)
+        if color is None:
+            return match.group(0)
+        return f"{prefix}{marker}{accent(label.rstrip() + delimiter, color)}"
+
+    highlighted = LEADING_LABEL_RE.sub(_color_leading_label, highlighted)
+
+    for keyword, color in KEYWORD_COLORS.items():
+        highlighted = highlighted.replace(keyword, f"<font color='{color}'><b>{keyword}</b></font>")
+
+    return highlighted
+
+
+PERSPECTIVE_EQUATION = "x' = f x / z, y' = f y / z"
+
+
+NOTE_PINHOLE_CAMERA = note(
+    f"• {accent('针孔', ACCENT_RED)}让每个物点基本只通过一条光线落到胶片上，因此模糊会明显减轻。",
+    f"• 代价是通光量变小，所以画面会更{accent('暗', ACCENT_ORANGE)}；这就是“小孔换清晰”的核心权衡。",
+)
+
+NOTE_IMAGE_PLANE = note(
+    f"• {accent('f', ACCENT_BLUE)} 是焦距，表示针孔到像平面的距离；{accent('O', ACCENT_RED)} 是光心/摄像机中心。",
+    f"• {accent('虚拟像平面', ACCENT_GREEN)} 只是为了避免倒像，推导时把像平面放到相机前方会更方便。",
+)
+
+NOTE_PERSPECTIVE = note(
+    f"• 透视投影的关键是{accent('按深度 z 缩放', ACCENT_RED)}：{accent('离得越远，像得越小', ACCENT_ORANGE)}。",
+    f"• {accent(PERSPECTIVE_EQUATION, ACCENT_BLUE)} 说明像平面坐标不是线性的，而是由三维点除以深度得到的。",
+)
+
+NOTE_PIXELS = note(
+    f"• {accent('c_x, c_y', ACCENT_BLUE)} 把光心平移到图像中心附近；{accent('α, β', ACCENT_RED)} 把米制坐标换成像素坐标。",
+    f"• 记住：{accent('f', ACCENT_ORANGE)} 是物理焦距，{accent('k, l', ACCENT_GREEN)} 是像素尺度，别把单位混在一起。",
+)
+
+NOTE_DISTORTION = note(
+    f"• {accent('失焦', ACCENT_ORANGE)} 会让点扩散成模糊斑；孔径太小虽然更清晰，但亮度会下降。",
+    f"• {accent('径向畸变', ACCENT_RED)} 会让直线在图像边缘变弯，常见两种形态是{accent('桶形', ACCENT_BLUE)}和{accent('枕形', ACCENT_GREEN)}。",
+)
+
+NOTE_APERTURE = note(
+    f"• 这页的核心是{accent('孔径 / 光圈', ACCENT_RED)}：孔径越小，景深越大，但进光量会下降。",
+    f"• 真实成像里，{accent('焦距', ACCENT_BLUE)}、{accent('孔径', ACCENT_ORANGE)}和{accent('对焦距离', ACCENT_GREEN)}会一起影响清晰度。",
+)
+
+NOTE_APERTURE_TRADEOFF = note(
+    f"• {accent('光圈越小越清晰', ACCENT_RED)}这件事有前提：模糊圈会变小，但{accent('亮度也会下降', ACCENT_ORANGE)}。",
+    f"• 这两页想强调的是成像里的基本权衡：{accent('清晰度', ACCENT_BLUE)}、{accent('景深', ACCENT_GREEN)}和{accent('通光量', ACCENT_RED)}不能同时拉满。",
+)
+
+NOTE_LENS_FOCUSING = note(
+    f"• {accent('透镜', ACCENT_BLUE)}的作用不是简单放大，而是把同一物点来的多条光线重新{accent('汇聚', ACCENT_RED)}到像面上。",
+    f"• 它比针孔更亮，但也更依赖{accent('对焦位置', ACCENT_ORANGE)}和{accent('焦距', ACCENT_GREEN)}的控制。",
+)
+
+NOTE_PARAXIAL_MODEL = note(
+    f"• {accent('近轴近似', ACCENT_RED)}只在小角度、靠近光轴时成立，所以适合做课堂里的简化推导。",
+    f"• 这个模型的价值是把复杂折射关系压成可计算的几何关系，便于后面连接到相机成像公式。",
+)
+
+NOTE_CAMERA_SKEW = note(
+    f"• {accent('θ', ACCENT_RED)} 描述像素坐标轴是否正交；理想相机里通常接近 {accent('90°', ACCENT_BLUE)}。",
+    f"• 当坐标轴不完全垂直时，就会出现{accent('偏斜项', ACCENT_ORANGE)}，它会进入内参矩阵 K。",
+)
+
+NOTE_PROJECTION_MATRIX = note(
+    f"• {accent('M', ACCENT_RED)} 是 3×4 的投影矩阵，作用是把三维点的{accent('齐次坐标', ACCENT_BLUE)}映到图像平面。",
+    f"• 看到 {accent('P′ = MP', ACCENT_GREEN)} 时，要立刻想到“先线性映射，再做归一化恢复欧式坐标”。",
+)
+
+NOTE_INTRINSIC_DOF = note(
+    f"• 这页问的是{accent('K 有多少自由度', ACCENT_RED)}，标准答案是 {accent('5 DOF', ACCENT_BLUE)}。",
+    f"• 它们通常对应{accent('两个尺度', ACCENT_ORANGE)}、{accent('主点坐标', ACCENT_GREEN)}和{accent('偏斜', ACCENT_RED)}。",
+)
+
+NOTE_CAMERA_GEOMETRY = note(
+    f"• 完整模型可以压成 {accent('P′ = K[R|T]P_w', ACCENT_RED)}：{accent('K', ACCENT_BLUE)} 管成像，{accent('[R|T]', ACCENT_ORANGE)} 管位姿。",
+    f"• 这就是后面标定和参数分解的起点，所有求解基本都围着这条式子展开。",
+)
+
+NOTE_SVD_CALIBRATION = note(
+    f"• 把标定写成 {accent('Pm = 0', ACCENT_RED)} 后，本质上是在找一个非零向量 m，使残差尽量小。",
+    f"• {accent('SVD', ACCENT_BLUE)} 会把这个问题转成“取最小奇异值对应的右奇异向量”，这是线性标定里最常见的套路。",
+)
+
+NOTE_PARAMETER_EXTRACTION = note(
+    f"• 这里是在把求出的 {accent('M = [A\\ b]', ACCENT_RED)} 继续拆成 {accent('K、R、T', ACCENT_BLUE)} 三部分。",
+    f"• 记忆顺序最好固定成：先从 {accent('A', ACCENT_ORANGE)} 恢复内参与旋转，再从 {accent('b', ACCENT_GREEN)} 恢复平移。",
+)
+
+NOTE_PROJECTION_THEOREM = note(
+    f"• 这类定理页不是让你硬背全部条件，而是告诉你：{accent('什么样的 3×4 矩阵', ACCENT_RED)} 才能合法表示透视相机。",
+    f"• 复习时先抓住 {accent('Det(A) ≠ 0', ACCENT_BLUE)} 和矩阵可分解性，再回头看其余约束。",
+)
+
+NOTE_NONLINEARITY = note(
+    f"• {accent('P 到 P′ 不是线性变换', ACCENT_RED)}，因为中间要做一次除以深度 z 的透视除法。",
+    f"• 这也是为什么要引入{accent('齐次坐标', ACCENT_BLUE)}：先把投影写成矩阵，再在最后恢复欧式坐标。",
+)
+
+NOTE_HOMOGENEOUS = note(
+    f"• 齐次坐标把“除法投影”改写成更方便的矩阵形式，便于把投影看成线性代数问题。",
+    f"• 最后再做一次{accent('归一化', ACCENT_BLUE)}（除以最后一维），就能回到欧式坐标。",
+)
+
+NOTE_INTRINSIC_EXTRINSIC = note(
+    f"• {accent('K', ACCENT_BLUE)} 描述内参，{accent('[R|T]', ACCENT_RED)} 描述外参；合起来才是完整的相机投影模型。",
+    f"• 这一步的核心是：先把世界坐标变到相机坐标，再用内参映射到像素坐标。",
+)
+
+NOTE_ORTHOGRAPHIC = note(
+    f"• 正交投影把透视里的深度缩放近似成 1，因此{accent('不再有近大远小', ACCENT_ORANGE)}。",
+    f"• 它更适合远距离目标或深度变化很小的场景，但会损失透视信息。",
+)
+
+NOTE_CALIBRATION = note(
+    f"• 标定的目标是从已知的 3D-2D 对应点里求出相机的{accent('内参', ACCENT_BLUE)}和{accent('外参', ACCENT_RED)}。",
+    f"• 这种问题通常写成最小化 {accent('Pm = 0', ACCENT_ORANGE)}，再用奇异值分解或等价的线性代数方法求解。",
+)
+
+NOTE_DECOMPOSITION = note(
+    f"• 看到 {accent('ρ[Ab] = K[R|T]', ACCENT_RED)} 时，要立刻想到：左边是投影矩阵分解，右边是在恢复内参与外参。",
+    f"• 右下角的 {accent('T = ρK⁻¹b', ACCENT_BLUE)} 说明平移项可以在分解后单独恢复。",
+)
+
+NOTE_DEGENERACY = note(
+    f"• {accent('所有标定点不能共面', ACCENT_RED)}，否则解会退化，内外参会变得不稳定。",
+    f"• 这页的重点不是具体数值，而是提醒你：标定数据要有足够的{accent('三维几何约束', ACCENT_ORANGE)}。",
+)
 
 
 NOTE_CONVOLUTION = note(
@@ -256,6 +472,31 @@ NOTE_PED_DET = note(
 
 
 FORMULA_SUPPLEMENTS = {
+    "02": {
+        **repeat(NOTE_PINHOLE_CAMERA, "page_06"),
+        **repeat(NOTE_IMAGE_PLANE, "page_07"),
+        **repeat(NOTE_APERTURE_TRADEOFF, "page_11", "page_12"),
+        **repeat(NOTE_LENS_FOCUSING, "page_13", "page_14"),
+        **repeat(NOTE_PARAXIAL_MODEL, "page_15"),
+        **repeat(NOTE_CAMERA_SKEW, "page_27", "page_28"),
+        **repeat(NOTE_PROJECTION_MATRIX, "page_29", "page_30"),
+        **repeat(NOTE_INTRINSIC_DOF, "page_31", "page_32"),
+        **repeat(NOTE_CAMERA_GEOMETRY, "page_33", "page_34", "page_37"),
+        **repeat(NOTE_PERSPECTIVE, "page_09", "page_35"),
+        **repeat(NOTE_PIXELS, "page_10", "page_19", "page_20"),
+        **repeat(NOTE_DISTORTION, "page_16", "page_17"),
+        **repeat(NOTE_APERTURE, "page_18"),
+        **repeat(NOTE_NONLINEARITY, "page_21"),
+        **repeat(NOTE_HOMOGENEOUS, "page_22", "page_23", "page_24", "page_30"),
+        **repeat(NOTE_INTRINSIC_EXTRINSIC, "page_25", "page_26", "page_36"),
+        **repeat(NOTE_ORTHOGRAPHIC, "page_40", "page_45", "page_46", "page_47", "page_48"),
+        **repeat(NOTE_CALIBRATION, "page_60", "page_70"),
+        **repeat(NOTE_SVD_CALIBRATION, "page_71", "page_72", "page_73"),
+        **repeat(NOTE_PARAMETER_EXTRACTION, "page_74", "page_75", "page_76", "page_77", "page_78", "page_79"),
+        **repeat(NOTE_PROJECTION_THEOREM, "page_41"),
+        **repeat(NOTE_DECOMPOSITION, "page_80", "page_81"),
+        **repeat(NOTE_DEGENERACY, "page_82", "page_83"),
+    },
     "03": {
         **repeat(NOTE_CONVOLUTION, "page_10"),
         **repeat(NOTE_FILTER_PROPERTIES, "page_11", "page_12"),
