@@ -29,6 +29,7 @@
 - **Python**：`C:\Python314\python.exe`（Python 3.13）
 - **包管理**：直接 `pip install` 安装到用户 site-packages，不使用虚拟环境
 - **Tesseract OCR**：`D:\Program Files\Tesseract-OCR\tesseract.exe`（v5.4.0），使用前需配置 `pytesseract.pytesseract.tesseract_cmd`
+- **pandoc**：`C:\Users\lx_hm\AppData\Local\Microsoft\WinGet\Packages\JohnMacFarlane.Pandoc_Microsoft.Winget.Source_8wekyb3d8bbwe\pandoc-3.10\pandoc.exe`（Markdown → DOCX，LaTeX → OMML）
 - **reportlab 中文字体**：通过 `pdfmetrics.registerFont(TTFont(...))` 注册：
   - SimHei（黑体）：`C:\Windows\Fonts\simhei.ttf`
   - YaHei（微软雅黑）：`C:\Windows\Fonts\msyh.ttc` subfontIndex=0
@@ -49,21 +50,56 @@
 
 翻译中的HTML标签须使用 `<br/>`（XML自闭合），不能用 `<br>` 或 `<br />`，否则 reportlab 解析报错。
 
+## DOCX 压缩流水线
+
+有两个脚本处理 DOCX 极致压缩（用于开卷考试材料打印）：
+
+### `scripts/compress_docx.py` — 对已有 DOCX 做 XML 级压缩
+
+```bash
+# 1. 解包
+python scripts/office/unpack.py input.docx temp/unpacked/
+# 2. 运行压缩
+python scripts/compress_docx.py
+# 3. 重新打包
+python scripts/office/pack.py temp/unpacked/ output.docx --validate false
+```
+
+脚本通过正则直接修改 `styles.xml`、`document.xml`、`numbering.xml`：
+- 全字体 6pt（sz=12），微软雅黑
+- 双栏等宽 + 中栏竖线（`w:sep="1"`）
+- 页边距 0.15"（216 twips），栏间距 108 twips
+- 标题用颜色区分（暗红→深蓝→深青→深紫→深棕）
+- 所有段落间距归零，编号缩进减半，表格单元格边距归零
+
+### `scripts/md2docx.py` — Markdown 直接转压缩 DOCX
+
+```bash
+python scripts/md2docx.py
+```
+
+纯 python-docx 方案，处理标题、表格、列表、引用块、行内公式（作为着色斜体文本）。公式渲染为文本格式（非 OMML），适合无 pandoc 环境。如需 OMML 原生公式渲染，先用 pandoc 转换再用 `compress_docx.py` 压缩。
+
 ## 项目结构
 
 ```
 课程ppt/
 ├── 原版/                 # 原始英文PDF（仅本地，.gitignore排除）
 ├── 中文版/               # 翻译输出（Git追踪）
+├── 试卷/                  # 课程试卷（MD + 压缩 DOCX）
+├── docs/                  # 复习资料（MD + 压缩 DOCX）
 ├── scripts/              # 流水线脚本
 │   ├── batch_ocr.py           # 批量OCR
 │   ├── generate_pdf.py        # 通用PDF生成器
 │   ├── generate_cn_pdf_v2.py  # 手动翻译模板（已弃用）
 │   ├── formula_renderer.py    # 公式与数学符号渲染
-│   └── formula_supplements.py # 公式学习补充文案
+│   ├── formula_supplements.py # 公式学习补充文案
+│   ├── compress_docx.py       # DOCX 极致压缩（双栏/6pt/颜色标题）
+│   └── md2docx.py             # Markdown → 压缩 DOCX 直接转换
 ├── tests/                # 回归测试
 ├── temp/                 # 临时文件（OCR结果、翻译JSON、幻灯片截图）
 ├── CLAUDE.md
+├── AGENTS.md
 └── .remember/
 ```
 

@@ -12,6 +12,7 @@
 - **数学符号规范化** — 生成时统一处理常见 Unicode 数学符号，避免公式渲染乱码
 - **统一字号** — 正文与公式统一使用 13pt，避免公式偏小
 - **11 个章节覆盖** — 成像与标定、滤波、边缘检测、拟合、Hough 变换、角点、Blob、纹理、分割、识别、检测
+- **开卷考试 DOCX 导出** — Markdown 复习资料 → 双栏压缩 DOCX，LaTeX 公式 → OMML 原生渲染，6pt 全字号 + 颜色区分标题
 
 ## 📋 环境要求
 
@@ -24,8 +25,11 @@
 Python 包（`pip install` 安装到用户 site-packages）：
 
 ```
-pytesseract, pdfplumber, reportlab, Pillow
+pytesseract, pdfplumber, reportlab, Pillow, python-docx, markdown
 ```
+
+可选依赖：
+- **pandoc** — Markdown → DOCX 转换（LaTeX 公式渲染为 OMML）
 
 ## 🚀 快速开始
 
@@ -58,6 +62,21 @@ python scripts/generate_cn_pdf_v2.py
 
 当前 `04` 章仍使用这条手工流水线；其余章节统一走 `scripts/generate_pdf.py`。
 
+### 方式三：导出压缩 DOCX（开卷考试用）
+
+```bash
+# Markdown → 压缩双栏 DOCX（LaTeX 公式自动渲染为 OMML）
+pandoc --from markdown --to docx --mathml -o temp/raw.docx docs/复习资料.md
+python scripts/compress_docx.py  # 对已有 DOCX 做极致压缩
+```
+
+压缩规格：全 6pt 微软雅黑 | 双栏等宽 + 中栏竖线 | 0.15" 页边距 | 颜色区分标题层级 | 零段落间距。
+
+也提供直接转换脚本：
+```bash
+python scripts/md2docx.py  # 纯 python-docx 方案（无需 pandoc，公式为纯文本）
+```
+
 ## 📁 项目结构
 
 ```
@@ -71,10 +90,15 @@ python scripts/generate_cn_pdf_v2.py
 │   ├── generate_cn_pdf_v2.py   # 手动翻译模板（当前用于 04 章）
 │   ├── formula_renderer.py     # 公式渲染工具
 │   ├── formula_supplements.py  # 课程公式补充文案与重点分色规则
+│   ├── compress_docx.py        # DOCX 极致压缩（双栏/6pt/颜色标题）
+│   ├── md2docx.py              # Markdown → 压缩 DOCX 直接转换
 │   └── ...
+├── docs/                  # 复习资料（MD + 压缩版 DOCX）
+├── 试卷/                   # 课程试卷及推测补全（MD + 压缩版 DOCX）
 ├── tests/                   # 回归测试
 ├── temp/                  # 临时文件（OCR 结果、翻译 JSON、幻灯片截图）
 ├── CLAUDE.md              # Claude Code 项目指引
+├── AGENTS.md              # Codex 项目指引
 └── README.md
 ```
 

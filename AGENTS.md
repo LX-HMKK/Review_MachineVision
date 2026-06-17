@@ -29,6 +29,7 @@
 - **Python**：`C:\Python314\python.exe`（Python 3.13）
 - **包管理**：直接 `pip install` 安装到用户 site-packages，不使用虚拟环境
 - **Tesseract OCR**：`D:\Program Files\Tesseract-OCR\tesseract.exe`（v5.4.0），使用前需配置 `pytesseract.pytesseract.tesseract_cmd`
+- **pandoc**：`C:\Users\lx_hm\AppData\Local\Microsoft\WinGet\Packages\JohnMacFarlane.Pandoc_Microsoft.Winget.Source_8wekyb3d8bbwe\pandoc-3.10\pandoc.exe`（Markdown → DOCX，LaTeX → OMML）
 - **reportlab 中文字体**：通过 `pdfmetrics.registerFont(TTFont(...))` 注册：
   - SimHei（黑体）：`C:\Windows\Fonts\simhei.ttf`
   - YaHei（微软雅黑）：`C:\Windows\Fonts\msyh.ttc` subfontIndex=0
@@ -49,20 +50,37 @@
 
 翻译中的HTML标签须使用 `<br/>`（XML自闭合），不能用 `<br>` 或 `<br />`，否则 reportlab 解析报错。
 
+## DOCX 压缩流水线
+
+有两个脚本处理 DOCX 极致压缩（用于开卷考试材料打印）：
+
+### `scripts/compress_docx.py` — 对已有 DOCX 做 XML 级压缩
+
+配合解包/打包脚本：先 `unpack.py` 解包 DOCX，运行此脚本修改 XML，再 `pack.py` 打包。压缩项：全字体 6pt、双栏+中栏竖线、0.15" 页边距、颜色区分标题、零间距。
+
+### `scripts/md2docx.py` — Markdown 直接转压缩 DOCX
+
+纯 python-docx 方案，无需 pandoc。公式为文本格式。如需 OMML 公式渲染，先用 pandoc 转换再用 `compress_docx.py` 压缩。
+
 ## 项目结构
 
 ```
 课程ppt/
 ├── 原版/                 # 原始英文PDF（仅本地，.gitignore排除）
 ├── 中文版/               # 翻译输出（Git追踪）
+├── 试卷/                  # 课程试卷（MD + 压缩 DOCX）
+├── docs/                  # 复习资料（MD + 压缩 DOCX）
 ├── scripts/              # 流水线脚本
 │   ├── batch_ocr.py           # 批量OCR
 │   ├── generate_pdf.py        # 通用PDF生成器
 │   ├── generate_cn_pdf_v2.py  # 手动翻译模板（已弃用）
 │   ├── formula_renderer.py    # 公式与数学符号渲染
-│   └── formula_supplements.py # 公式学习补充文案
+│   ├── formula_supplements.py # 公式学习补充文案
+│   ├── compress_docx.py       # DOCX 极致压缩（双栏/6pt/颜色标题）
+│   └── md2docx.py             # Markdown → 压缩 DOCX 直接转换
 ├── tests/                # 回归测试
 ├── temp/                 # 临时文件（OCR结果、翻译JSON、幻灯片截图）
+├── CLAUDE.md
 ├── AGENTS.md
 └── .remember/
 ```
